@@ -1,52 +1,44 @@
-import streamlit as st
-import ezdxf
-from ezdxf.addons.drawing import matplotlib as dxf_plt
-import matplotlib.pyplot as plt
-import aspose.cad as cad
-import os
+# Supondo que 'df' é o seu DataFrame gerado após ler o KML/KMZ
+# Exibindo a visão prévia da tabela para o usuário
+print("\n👁️ VISÃO PRÉVIA DOS PONTOS ENCONTRADOS:")
+display(df)
 
-st.set_page_config(page_title="Visualizador CAD Integrado", page_icon="📐", layout="wide")
+print("-" * 60)
+print("🎯 PASSO 2: SELEÇÃO DA LINHA DESEJADA")
 
-st.title("📐 Visualizador CAD Web")
-st.markdown("Envie seu arquivo **.dwg**. O sistema converterá para DXF e renderizará a planta na mesma tela.")
+# Cria uma lista de opções numéricas baseada na quantidade de linhas da tabela (Ex: 1, 2, 3...)
+opcoes_linhas = [f"Linha {i+1}" for i in range(len(df))]
 
-arquivo_dwg = st.file_uploader("Selecione seu arquivo DWG", type=["dwg"])
+# Widget de Caixa de Seleção (Dropdown)
+seletor_linha = widgets.Dropdown(
+    options=opcoes_linhas,
+    description='Escolha:',
+    disabled=False,
+)
 
-if arquivo_dwg:
-    # Salva o arquivo temporariamente no servidor
-    with open("temp.dwg", "wb") as f:
-        f.write(arquivo_dwg.getbuffer())
+botao_confirmar = widgets.Button(
+    description='Confirmar Seleção',
+    button_style='success',
+    icon='check'
+)
+
+output_selecao = widgets.Output()
+
+def on_confirmar_clicked(b):
+    with output_selecao:
+        clear_output()
+        # Pega o índice real (0, 1, 2...) baseado na escolha (Linha 1, Linha 2...)
+        indice_escolhido = opcoes_linhas.index(seletor_linha.value)
+        linha_selecionada = df.iloc[indice_escolhido]
         
-    sucesso_conversao = False
-    
-    # ETAPA 1: Conversão (DWG para DXF)
-    with st.spinner("🔄 Passo 1: Convertendo arquivo DWG para DXF..."):
-        try:
-            imagem_cad = cad.Image.load("temp.dwg")
-            imagem_cad.save("temp.dxf")
-            sucesso_conversao = True
-        except Exception as e:
-            st.error(f"❌ Erro durante a conversão: {e}")
-            
-    # ETAPA 2: Leitura e Renderização (DXF para Tela)
-    if sucesso_conversao and os.path.exists("temp.dxf"):
-        with st.spinner("🎨 Passo 2: Renderizando a geometria 2D do projeto..."):
-            try:
-                doc = ezdxf.readfile("temp.dxf")
-                msp = doc.modelspace()
-                
-                # Configuração do gráfico
-                fig = plt.figure(figsize=(12, 10))
-                ax = fig.add_axes([0, 0, 1, 1])
-                
-                # Motor gráfico
-                ctx = dxf_plt.RenderContext(doc)
-                out = dxf_plt.MatplotlibBackend(ax)
-                dxf_plt.Frontend(ctx, out).draw_layout(msp, finalize=True)
-                
-                # Exibe na tela
-                st.pyplot(fig)
-                st.info("💡 Nota: A conversão gratuita adiciona uma marca d'água da Aspose no desenho.")
-                
-            except Exception as e:
-                st.error(f"❌ Falha na renderização da geometria: {e}")
+        print(f"\n✅ Você selecionou a {seletor_linha.value}:")
+        display(pd.DataFrame(linha_selecionada).T) # Exibe a linha isolada como tabela
+        
+        # A partir daqui, você pode usar as variáveis da linha selecionada
+        # Ex: lat = linha_selecionada['Latitude']
+
+botao_confirmar.on_click(on_confirmar_clicked)
+
+# Mostra o painel na tela
+painel_selecao = widgets.VBox([seletor_linha, botao_confirmar, output_selecao])
+display(painel_selecao)
